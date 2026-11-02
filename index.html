@@ -13,7 +13,7 @@
     --radius:16px;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  html,body{margin:0;height:100%;touch-action:manipulation;background:var(--bg);color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif}
   button{font:inherit;cursor:pointer}
   .screen{display:none;min-height:100%;}
@@ -59,7 +59,13 @@
 
   /* ---------- ゲーム ---------- */
   #screen-game{position:fixed;inset:0;background:#000}
-  #pano{position:absolute;inset:0}
+  #pano{position:absolute;inset:0;touch-action:none}
+  .move-pad{position:absolute;right:12px;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:5;display:flex;flex-direction:column;gap:8px;align-items:center}
+  .move-pad button{border:none;border-radius:50%;color:#fff;background:rgba(20,33,61,.88);box-shadow:0 6px 18px rgba(0,0,0,.35);touch-action:none;user-select:none;-webkit-user-select:none;font-weight:900}
+  .move-pad .fwd{width:72px;height:72px;font-size:26px}
+  .move-pad .back{width:52px;height:52px;font-size:18px}
+  .move-pad button:active,.move-pad button.on{background:var(--red)}
+  @media (min-width:900px){.move-pad{right:auto;left:12px;bottom:90px}}
   .hud{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 10px) 12px 0;display:flex;gap:8px;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
   .chip{background:rgba(20,33,61,.88);color:#fff;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:700;backdrop-filter:blur(6px);pointer-events:auto}
   .chip small{display:block;font-size:10px;opacity:.7;font-weight:600}
@@ -231,6 +237,10 @@
   <div class="game-btns">
     <button class="fab" id="open-map">🗾 地図で回答</button>
     <button class="fab sub" id="back-start" title="スタート地点に戻る">↺ 最初の場所</button>
+  </div>
+  <div class="move-pad" id="move-pad">
+    <button class="fwd" id="move-fwd" aria-label="前へ進む">▲</button>
+    <button class="back" id="move-back" aria-label="後ろへ戻る">▼</button>
   </div>
   <div class="map-panel" id="map-panel">
     <div class="map-head">
@@ -607,7 +617,8 @@ function ensurePano() {
     addressControl: false, showRoadLabels: false, fullscreenControl: false,
     motionTracking: false, motionTrackingControl: false, enableCloseButton: false,
     panControl: false, zoomControl: true, imageDateControl: false,
-    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+    clickToGo: false, disableDoubleClickZoom: true,
+    zoomControlOptions: { position: google.maps.ControlPosition.LEFT_CENTER },
   });
 }
 function ensureGuessMap() {
@@ -632,13 +643,14 @@ function startRound(n) {
   roundIndex = n; submitted = false;
   const loc = room.rounds[n];
   const move = !!room.settings.move;
-  pano.setOptions({ linksControl: move, clickToGo: move, keyboardShortcuts: move });
+  pano.setOptions({ linksControl: move, clickToGo: false, keyboardShortcuts: move });
   startPov = { heading: Math.random() * 360, pitch: 0 };
   pano.setPano(loc.pano);
   pano.setPov(startPov);
   pano.setZoom(0);
   pano.setVisible(true);
   $("#back-start").style.display = move ? "" : "none";
+  $("#move-pad").style.display = move ? "" : "none";
 
   if (guessMarker) { guessMarker.setMap(null); guessMarker = null; }
   guessMap.setCenter(JAPAN_CENTER);
@@ -890,6 +902,38 @@ $("#back-start").onclick = () => {
   pano.setPov(startPov); pano.setZoom(0);
 };
 $("#submit-btn").onclick = () => submitGuess();
+
+/* ---------- 移動ボタン（長押しで歩き続ける） ---------- */
+function step(dir) {
+  if (!pano || !room?.settings?.move) return;
+  const links = pano.getLinks() || [];
+  if (!links.length) return;
+  const pov = pano.getPov();
+  const want = pov.heading + (dir < 0 ? 180 : 0);
+  let best = null, bestDiff = 999;
+  for (const l of links) {
+    const d = Math.abs(((l.heading - want + 540) % 360) - 180);
+    if (d < bestDiff) { bestDiff = d; best = l; }
+  }
+  if (!best || bestDiff > 100) return; // その方向に道がない
+  pano.setPano(best.pano);
+  if (dir > 0) pano.setPov({ heading: best.heading, pitch: pov.pitch }); // 進行方向を向く
+}
+function bindHold(btn, dir) {
+  let t = null;
+  const stop = () => { clearInterval(t); t = null; btn.classList.remove("on"); };
+  btn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (t) return;
+    btn.classList.add("on");
+    step(dir);
+    t = setInterval(() => step(dir), 550);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => btn.addEventListener(ev, stop));
+  btn.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+bindHold($("#move-fwd"), 1);
+bindHold($("#move-back"), -1);
 $("#next-btn").onclick = () => nextRound();
 $("#rematch-btn").onclick = () => rematch();
 $("#final-home-btn").onclick = () => goHome();
