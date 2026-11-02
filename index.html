@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#14213d">
+<title>ニッポンゲッサー｜2人で日本どこだ対戦</title>
+<style>
+  :root{
+    --navy:#14213d; --navy2:#1f2f56; --red:#d62839; --red2:#b51f2e;
+    --bg:#f5f3ef; --card:#ffffff; --text:#1b1b1f; --muted:#6b6f7b;
+    --me:#2563eb; --opp:#e11d48; --ok:#16a34a;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic UI",sans-serif}
+  button{font:inherit;cursor:pointer}
+  .screen{display:none;min-height:100%;}
+  .screen.active{display:block}
+  .wrap{max-width:480px;margin:0 auto;padding:28px 20px 40px}
+
+  /* ---------- ホーム ---------- */
+  .hero{background:var(--navy);color:#fff;padding:44px 20px 64px;text-align:center;position:relative;overflow:hidden}
+  .hero .sun{width:92px;height:92px;border-radius:50%;background:var(--red);margin:0 auto 18px;box-shadow:0 0 0 10px rgba(214,40,57,.18)}
+  .hero h1{margin:0;font-size:30px;letter-spacing:.06em}
+  .hero p{margin:10px 0 0;opacity:.8;font-size:14px}
+  .card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:0 6px 24px rgba(20,33,61,.08)}
+  .lift{margin-top:-40px;position:relative}
+  label.lbl{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px;font-weight:600}
+  input[type=text],select{width:100%;padding:13px 14px;border:1.5px solid #dcdfe6;border-radius:12px;font-size:16px;background:#fff;color:var(--text)}
+  input[type=text]:focus,select:focus{outline:none;border-color:var(--navy)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .btn{display:block;width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:700;color:#fff;background:var(--red);margin-top:18px;transition:transform .08s,background .2s}
+  .btn:active{transform:scale(.98)}
+  .btn:disabled{background:#c9ccd3;cursor:default}
+  .btn.navy{background:var(--navy)}
+  .btn.ghost{background:transparent;color:var(--navy);border:1.5px solid var(--navy)}
+  .note{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.6}
+  .how{margin-top:18px;font-size:13px;color:var(--muted);line-height:1.8}
+  .how b{color:var(--text)}
+
+  /* ---------- ロビー ---------- */
+  .linkbox{display:flex;gap:8px;margin-top:8px}
+  .linkbox input{font-size:13px;flex:1}
+  .linkbox button{border:none;background:var(--navy);color:#fff;border-radius:12px;padding:0 14px;font-weight:700;white-space:nowrap}
+  .share-row{display:flex;gap:8px;margin-top:10px}
+  .share-row button{flex:1;border:none;border-radius:12px;padding:12px;font-weight:700;color:#fff}
+  .b-line{background:#06c755}.b-share{background:var(--navy2)}
+  .players{margin-top:16px;display:grid;gap:10px}
+  .player{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#f3f4f7}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .player .nm{font-weight:700}
+  .player .tag{margin-left:auto;font-size:12px;color:var(--muted)}
+  .waiting-dots::after{content:"";animation:dots 1.4s infinite}
+  @keyframes dots{0%{content:""}33%{content:"."}66%{content:".."}100%{content:"..."}}
+  .settings-sum{font-size:13px;color:var(--muted);margin-top:12px}
+
+  /* ---------- ゲーム ---------- */
+  #screen-game{position:fixed;inset:0;background:#000}
+  #pano{position:absolute;inset:0}
+  .hud{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 10px) 12px 0;display:flex;gap:8px;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
+  .chip{background:rgba(20,33,61,.88);color:#fff;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:700;backdrop-filter:blur(6px);pointer-events:auto}
+  .chip small{display:block;font-size:10px;opacity:.7;font-weight:600}
+  #hud-timer{font-size:20px;min-width:76px;text-align:center}
+  #hud-timer.danger{background:var(--red)}
+  .opp-status{position:absolute;top:calc(env(safe-area-inset-top) + 66px);left:12px;z-index:5;font-size:12px}
+  .opp-status.done{background:rgba(22,163,74,.92)}
+  .game-btns{position:absolute;left:12px;bottom:calc(env(safe-area-inset-bottom) + 16px);display:flex;gap:8px;z-index:5}
+  .fab{border:none;border-radius:999px;padding:14px 18px;font-weight:800;color:#fff;background:var(--red);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .fab.sub{background:rgba(20,33,61,.9);padding:14px 16px}
+
+  .map-panel{position:absolute;left:0;right:0;bottom:0;height:68vh;background:#fff;border-radius:18px 18px 0 0;z-index:10;
+    transform:translateY(105%);transition:transform .28s ease;display:flex;flex-direction:column;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
+  .map-panel.open{transform:translateY(0)}
+  .map-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-weight:700;font-size:14px}
+  .map-head button{border:none;background:#eef0f4;border-radius:10px;padding:8px 12px;font-weight:700}
+  #guess-map{flex:1}
+  .map-foot{padding:10px 12px calc(env(safe-area-inset-bottom) + 12px)}
+  .map-foot .btn{margin-top:0}
+
+  .waiting{position:absolute;inset:0;z-index:20;background:rgba(10,15,30,.6);display:none;align-items:center;justify-content:center}
+  .waiting.show{display:flex}
+  .waiting .card{text-align:center;width:min(86vw,340px)}
+  .spinner{width:40px;height:40px;border-radius:50%;border:4px solid #e5e7eb;border-top-color:var(--red);margin:0 auto 14px;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media (min-width:900px){
+    .map-panel{left:auto;right:16px;bottom:16px;width:380px;height:320px;border-radius:16px;transform:none;opacity:.92;transition:width .2s,height .2s,opacity .2s}
+    .map-panel:hover,.map-panel.open{width:640px;height:520px;opacity:1}
+    .map-head button.close-map{display:none}
+    #open-map{display:none}
+  }
+
+  /* ---------- 結果 ---------- */
+  #screen-result{position:fixed;inset:0;display:none;flex-direction:column;background:var(--bg)}
+  #screen-result.active{display:flex}
+  #result-map{flex:1;min-height:40vh}
+  .result-sheet{background:#fff;border-radius:18px 18px 0 0;margin-top:-18px;position:relative;z-index:2;padding:18px 16px calc(env(safe-area-inset-bottom) + 16px);box-shadow:0 -6px 20px rgba(0,0,0,.12)}
+  .result-title{text-align:center;font-weight:800;font-size:15px;color:var(--muted)}
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .pcard{border-radius:14px;padding:12px;background:#f5f6f9;border-top:5px solid}
+  .pcard .nm{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pcard .dist{font-size:13px;color:var(--muted);margin-top:4px}
+  .pcard .pts{font-size:26px;font-weight:900;margin-top:2px}
+  .pcard .tot{font-size:12px;color:var(--muted)}
+  .pcard.win{background:#fff7e6}
+  .sv-link{display:block;text-align:center;font-size:13px;margin-top:10px;color:var(--navy)}
+
+  /* ---------- 最終結果 ---------- */
+  .final-head{background:var(--navy);color:#fff;text-align:center;padding:40px 20px 70px}
+  .final-head .big{font-size:28px;font-weight:900;margin-top:6px}
+  .final-head .sub{opacity:.8;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  th,td{padding:10px 6px;text-align:center;border-bottom:1px solid #eceef2}
+  th{font-size:12px;color:var(--muted);font-weight:700}
+  tr.total td{font-weight:900;font-size:16px;border-bottom:none}
+  td.best{color:var(--red);font-weight:800}
+
+  /* ---------- 共通 ---------- */
+  #loading{position:fixed;inset:0;z-index:100;background:rgba(245,243,239,.92);display:none;align-items:center;justify-content:center;flex-direction:column;font-weight:700;color:var(--navy)}
+  #loading.show{display:flex}
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%) translateY(20px);background:#111827;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:200;max-width:90vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .error-box{white-space:pre-wrap;line-height:1.7;font-size:14px}
+</style>
+</head>
+<body>
+
+<!-- ホーム -->
+<section id="screen-home" class="screen">
+  <div class="hero">
+    <div class="sun"></div>
+    <h1>ニッポンゲッサー</h1>
+    <p>ストリートビューで「ここ日本のどこ？」を2人で対戦</p>
+  </div>
+  <div class="wrap lift">
+    <div class="card">
+      <label class="lbl" for="host-name">あなたの名前</label>
+      <input type="text" id="host-name" maxlength="12" placeholder="例：こうた" autocomplete="nickname">
+      <div class="row">
+        <div>
+          <label class="lbl" for="set-rounds">ラウンド数</label>
+          <select id="set-rounds">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+        <div>
+          <label class="lbl" for="set-time">制限時間</label>
+          <select id="set-time">
+            <option value="60">60秒</option>
+            <option value="120" selected>120秒</option>
+            <option value="180">180秒</option>
+            <option value="0">なし</option>
+          </select>
+        </div>
+      </div>
+      <label class="lbl" for="set-move">移動</label>
+      <select id="set-move">
+        <option value="1" selected>移動OK（歩き回れる）</option>
+        <option value="0">移動なし（その場から見るだけ）</option>
+      </select>
+      <button class="btn" id="create-btn">部屋を作って招待する</button>
+      <div class="how">
+        <b>遊び方</b><br>
+        ① 部屋を作って、招待リンクを相手に送る<br>
+        ② 2人とも同じ景色を見て、地図にピンを立てる<br>
+        ③ 正解に近いほど高得点（最大5,000点／ラウンド）
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 招待から参加 -->
+<section id="screen-join" class="screen">
+  <div class="hero">
+    <div class="sun"></div>
+    <h1>ニッポンゲッサー</h1>
+    <p><span id="join-host-name"></span> さんから対戦の招待が届いています</p>
+  </div>
+  <div class="wrap lift">
+    <div class="card">
+      <label class="lbl" for="join-name">あなたの名前</label>
+      <input type="text" id="join-name" maxlength="12" placeholder="例：ちか" autocomplete="nickname">
+      <button class="btn" id="join-btn">参加する</button>
+    </div>
+  </div>
+</section>
+
+<!-- ロビー -->
+<section id="screen-lobby" class="screen">
+  <div class="wrap">
+    <h2 style="margin:6px 0 16px">対戦ルーム</h2>
+    <div class="card" id="invite-card">
+      <div style="font-weight:700">招待リンクを相手に送ってください</div>
+      <div class="linkbox">
+        <input type="text" id="invite-link" readonly>
+        <button id="copy-btn">コピー</button>
+      </div>
+      <div class="share-row">
+        <button class="b-line" id="line-btn">LINEで送る</button>
+        <button class="b-share" id="share-btn">共有…</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <div style="font-weight:700">プレイヤー</div>
+      <div class="players">
+        <div class="player"><span class="dot" id="dot-host"></span><span class="nm" id="lobby-host"></span><span class="tag">ホスト</span></div>
+        <div class="player"><span class="dot" id="dot-guest"></span><span class="nm" id="lobby-guest"></span><span class="tag">ゲスト</span></div>
+      </div>
+      <div class="settings-sum" id="settings-sum"></div>
+      <button class="btn" id="start-btn" disabled>ゲーム開始</button>
+      <div class="note" id="lobby-note"></div>
+    </div>
+    <button class="btn ghost" id="lobby-home-btn">ホームに戻る</button>
+  </div>
+</section>
+
+<!-- ゲーム -->
+<section id="screen-game" class="screen">
+  <div id="pano"></div>
+  <div class="hud">
+    <div class="chip"><small>ラウンド</small><span id="hud-round"></span></div>
+    <div class="chip" id="hud-timer">--:--</div>
+    <div class="chip" style="text-align:right"><small>あなたの合計</small><span id="hud-score">0</span></div>
+  </div>
+  <div class="chip opp-status" id="opp-status"></div>
+  <div class="game-btns">
+    <button class="fab" id="open-map">🗾 地図で回答</button>
+    <button class="fab sub" id="back-start" title="スタート地点に戻る">↺ 最初の場所</button>
+  </div>
+  <div class="map-panel" id="map-panel">
+    <div class="map-head">
+      <span id="map-hint">地図をタップしてピンを立てよう</span>
+      <button class="close-map" id="close-map">景色に戻る</button>
+    </div>
+    <div id="guess-map"></div>
+    <div class="map-foot"><button class="btn" id="submit-btn" disabled>この場所で決定</button></div>
+  </div>
+  <div class="waiting" id="waiting">
+    <div class="card">
+      <div class="spinner"></div>
+      <div style="font-weight:800">回答しました！</div>
+      <div class="note" style="margin-top:6px"><span id="waiting-opp"></span> さんの回答を待っています<span class="waiting-dots"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ラウンド結果 -->
+<section id="screen-result" class="screen">
+  <div id="result-map"></div>
+  <div class="result-sheet">
+    <div class="result-title" id="result-title"></div>
+    <div class="vs" id="result-cards"></div>
+    <a class="sv-link" id="sv-link" target="_blank" rel="noopener">正解の場所をGoogleマップで見る ↗</a>
+    <button class="btn navy" id="next-btn">次のラウンドへ</button>
+  </div>
+</section>
+
+<!-- 最終結果 -->
+<section id="screen-final" class="screen">
+  <div class="final-head">
+    <div class="sub">最終結果</div>
+    <div class="big" id="final-winner"></div>
+    <div class="sub" id="final-score"></div>
+  </div>
+  <div class="wrap lift">
+    <div class="card">
+      <table id="final-table"></table>
+    </div>
+    <button class="btn" id="rematch-btn">もう一度対戦する</button>
+    <button class="btn ghost" id="final-home-btn">ホームに戻る</button>
+  </div>
+</section>
+
+<!-- 設定エラー -->
+<section id="screen-error" class="screen">
+  <div class="wrap">
+    <div class="card"><h3 style="margin-top:0">セットアップが必要です</h3><div class="error-box" id="error-text"></div></div>
+  </div>
+</section>
+
+<div id="loading"><div class="spinner"></div><div id="loading-text">読み込み中…</div></div>
+<div id="toast"></div>
+
+<script type="module">
+/* =========================================================
+   設定（ここだけ書き換えてください）
+   ========================================================= */
+const CONFIG = {
+  GOOGLE_MAPS_API_KEY: "AIzaSyC_hsZsAD7S2aGCpXdXO1Uz-7z21nSTrF8",
+  firebase: {
+    apiKey: "AIzaSyBoiF4IDZnJ41vEL3TKifrNm-yK6UiSiNE",
+    authDomain: "nippon-guesser.firebaseapp.com",
+    projectId: "nippon-guesser",
+    storageBucket: "nippon-guesser.firebasestorage.app",
+    messagingSenderId: "55655020439",
+    appId: "1:55655020439:web:0db734397cbaf82234b6d2",
+  },
+};
+const COLLECTION = "geoRooms";
+
+/* ========================================================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, runTransaction, serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const $ = (s) => document.querySelector(s);
+const SCREENS = ["home", "join", "lobby", "game", "result", "final", "error"];
+const JAPAN_CENTER = { lat: 36.2, lng: 137.8 };
+const COLORS = { me: "#2563eb", opp: "#e11d48" };
+
+let db, roomId = null, role = null, room = null, unsub = null, pendingRoom = null;
+let pano = null, guessMap = null, guessMarker = null, resultMap = null, resultOverlays = [];
+let roundKey = null, resultKey = null, finalKey = null, roundIndex = -1, startPov = null;
+let timer = null, deadline = 0, submitted = false;
+
+/* ---------- 汎用 ---------- */
+function show(name) {
+  SCREENS.forEach((s) => $("#screen-" + s).classList.toggle("active", s === name));
+  window.scrollTo(0, 0);
+}
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function loading(on, msg = "読み込み中…") {
+  $("#loading-text").textContent = msg;
+  $("#loading").classList.toggle("show", on);
+}
+function fatal(msg) {
+  loading(false);
+  $("#error-text").textContent = msg;
+  show("error");
+}
+function randId(n) {
+  const chars = "abcdefghijkmnpqrstuvwxyz23456789";
+  const a = new Uint32Array(n);
+  crypto.getRandomValues(a);
+  return Array.from(a, (x) => chars[x % chars.length]).join("");
+}
+const pid = (() => {
+  let id = localStorage.getItem("ng_pid");
+  if (!id) { id = randId(16); localStorage.setItem("ng_pid", id); }
+  return id;
+})();
+function readName(sel) {
+  const v = $(sel).value.trim().slice(0, 12);
+  if (!v) { toast("名前を入力してください"); $(sel).focus(); return null; }
+  localStorage.setItem("ng_name", v);
+  return v;
+}
+const roomRef = () => doc(db, COLLECTION, roomId);
+const opp = () => (role === "host" ? "guest" : "host");
+const nameOf = (r) => (room?.players?.[r]?.name) || (r === "host" ? "ホスト" : "ゲスト");
+function inviteUrl() { return location.origin + location.pathname + "?room=" + roomId; }
+
+/* ---------- 距離と得点 ---------- */
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371, toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+// 日本サイズ向けに調整：10km→約4,700点 / 50km→約3,600点 / 150km→約1,840点 / 500km→約180点
+function calcScore(km) {
+  if (km == null) return 0;
+  if (km < 0.05) return 5000;
+  return Math.round(5000 * Math.exp(-km / 150));
+}
+function fmtKm(km) {
+  if (km == null) return "時間切れ";
+  if (km < 1) return Math.round(km * 1000) + " m";
+  if (km < 100) return km.toFixed(1) + " km";
+  return Math.round(km).toLocaleString() + " km";
+}
+function totalOf(r) {
+  const g = room?.guesses || {};
+  return Object.values(g).reduce((s, x) => s + (x?.[r]?.score || 0), 0);
+}
+
+/* ---------- 出題地点（日本限定） ---------- */
+// [緯度, 経度, ばらつき(度)]  全都道府県＋広い道県は追加地点
+const SEEDS = [
+  // 北海道
+  [43.06,141.35,.25],[43.77,142.36,.25],[41.77,140.73,.2],[42.98,144.38,.2],[42.92,143.20,.3],
+  [43.80,143.89,.25],[45.41,141.67,.1],[42.32,140.97,.15],[44.36,142.46,.25],
+  // 東北
+  [40.82,140.74,.25],[40.51,141.49,.2],[39.70,141.15,.25],[39.64,141.95,.1],[38.93,141.13,.25],
+  [38.27,140.87,.25],[39.72,140.10,.2],[39.31,140.55,.25],[38.24,140.36,.25],[38.91,139.84,.15],
+  [37.75,140.47,.25],[37.40,140.38,.25],[37.49,139.93,.25],[37.05,140.89,.15],
+  // 関東
+  [36.37,140.47,.25],[36.56,139.88,.25],[36.39,139.06,.25],[35.86,139.65,.2],[35.61,140.12,.2],
+  [35.68,139.76,.12],[35.66,139.32,.15],[35.44,139.64,.12],
+  // 中部
+  [37.92,139.04,.2],[37.45,138.85,.25],[37.15,138.24,.2],[36.70,137.21,.2],[36.56,136.66,.2],
+  [37.39,136.90,.1],[36.06,136.22,.2],[35.66,138.57,.2],[36.65,138.18,.25],[36.24,137.97,.25],
+  [35.51,137.82,.2],[35.42,136.76,.2],[36.14,137.25,.25],[34.98,138.38,.15],[34.71,137.73,.15],
+  [35.18,136.91,.2],[34.77,137.39,.15],
+  // 近畿
+  [34.73,136.51,.2],[34.49,136.71,.1],[35.00,135.87,.2],[35.01,135.77,.15],[35.47,135.39,.15],
+  [34.69,135.50,.15],[34.69,135.20,.12],[34.82,134.69,.2],[35.54,134.82,.2],[34.69,135.80,.2],
+  [34.23,135.17,.15],[33.73,135.38,.1],[33.72,135.99,.1],
+  // 中国
+  [35.50,134.24,.2],[35.47,133.05,.2],[34.90,132.08,.1],[34.66,133.93,.2],[34.39,132.46,.15],
+  [34.49,133.36,.2],[34.80,132.85,.25],[34.19,131.47,.2],[33.96,130.94,.1],
+  // 四国
+  [34.07,134.56,.2],[34.34,134.05,.15],[33.84,132.77,.2],[33.22,132.56,.1],[33.56,133.53,.2],[32.99,132.93,.1],
+  // 九州
+  [33.59,130.40,.15],[33.88,130.88,.1],[33.32,130.51,.2],[33.25,130.30,.15],[32.75,129.87,.1],
+  [33.18,129.72,.1],[32.80,130.71,.2],[32.21,130.76,.2],[33.24,131.61,.2],[31.91,131.42,.2],
+  [32.58,131.67,.1],[31.60,130.56,.15],[31.38,130.85,.1],
+  // 沖縄・奄美
+  [26.21,127.68,.08],[26.59,127.98,.08],[24.34,124.16,.04],[24.80,125.28,.04],[28.38,129.49,.05],
+];
+// 近隣国のパノラマを拾わないための簡易チェック
+function inJapan(lat, lng) {
+  if (lat < 24 || lat > 45.55 || lng < 122.9 || lng > 146) return false;
+  if (lat > 33.0 && lat < 38.7 && lng < 129.0) return false; // 朝鮮半島西〜南
+  if (lat > 34.9 && lat < 43.0 && lng < 129.7) return false; // 朝鮮半島東岸
+  if (lat > 43.6 && lng > 145.35) return false;               // 北方領土側（ストリートビュー無し）
+  return true;
+}
+function jitter([lat, lng, r]) {
+  const d = r * Math.sqrt(Math.random()), t = Math.random() * Math.PI * 2;
+  return { lat: lat + d * Math.cos(t), lng: lng + (d * Math.sin(t)) / Math.cos((lat * Math.PI) / 180) };
+}
+function findPano(sv, location) {
+  return new Promise((resolve) => {
+    const S = google.maps.StreetViewSource;
+    const req = { location, radius: 15000, preference: google.maps.StreetViewPreference.NEAREST };
+    if (S && S.GOOGLE) req.sources = [S.GOOGLE, S.OUTDOOR];
+    else req.source = S.OUTDOOR;
+    const pr = sv.getPanorama(req, (data, status) => {
+      if (status !== "OK" || !data?.location) return resolve(null);
+      if (!data.links || data.links.length === 0) return resolve(null); // 道につながっていない単発写真を除外
+      const ll = data.location.latLng;
+      resolve({ pano: data.location.pano, lat: ll.lat(), lng: ll.lng() });
+    });
+    if (pr && pr.catch) pr.catch(() => {});
+  });
+}
+async function generateRounds(count) {
+  const sv = new google.maps.StreetViewService();
+  const out = [];
+  let tries = 0;
+  while (out.length < count && tries < count * 30) {
+    tries++;
+    const seed = SEEDS[Math.floor(Math.random() * SEEDS.length)];
+    const res = await findPano(sv, jitter(seed));
+    if (!res || !inJapan(res.lat, res.lng)) continue;
+    if (out.some((o) => haversine(o.lat, o.lng, res.lat, res.lng) < 80)) continue; // 近すぎる出題を避ける
+    out.push(res);
+  }
+  if (out.length < count) throw new Error("出題地点が見つかりませんでした");
+  return out;
+}
+
+/* ---------- Google Maps 読み込み ---------- */
+function loadGoogleMaps() {
+  return new Promise((resolve, reject) => {
+    window.__gmapsReady = resolve;
+    window.gm_authFailure = () =>
+      fatal("Google Maps APIキーが無効です。\n・キーが正しいか\n・Maps JavaScript API が有効か\n・請求先アカウントが設定されているか\n・HTTPリファラー制限にこのサイトのURLが含まれているか\nを確認してください。");
+    const s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(CONFIG.GOOGLE_MAPS_API_KEY)}&v=weekly&language=ja&region=JP&callback=__gmapsReady`;
+    s.async = true;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+function pin(color, label) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44"><path d="M17 43C17 43 32 27 32 16A15 15 0 0 0 2 16C2 27 17 43 17 43Z" fill="${color}" stroke="white" stroke-width="3"/><text x="17" y="21" font-size="13" font-weight="700" text-anchor="middle" fill="white" font-family="sans-serif">${label}</text></svg>`;
+  return {
+    url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(34, 44),
+    anchor: new google.maps.Point(17, 43),
+  };
+}
+const flagIcon = () => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="38" height="38" viewBox="0 0 38 38"><circle cx="19" cy="19" r="16" fill="white" stroke="#14213d" stroke-width="3"/><circle cx="19" cy="19" r="8" fill="#d62839"/></svg>`;
+  return { url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg), scaledSize: new google.maps.Size(38, 38), anchor: new google.maps.Point(19, 19) };
+};
+
+/* ---------- 起動 ---------- */
+async function main() {
+  const notSet = (v) => !v || v.startsWith("YOUR_");
+  if (notSet(CONFIG.GOOGLE_MAPS_API_KEY) || notSet(CONFIG.firebase.apiKey)) {
+    fatal("index.html の CONFIG に\n・Google Maps APIキー\n・Firebaseの設定\nを書き込んでください。手順は README.md にあります。");
+    return;
+  }
+  db = getFirestore(initializeApp(CONFIG.firebase));
+  const saved = localStorage.getItem("ng_name") || "";
+  $("#host-name").value = saved;
+  $("#join-name").value = saved;
+
+  loading(true, "地図を読み込み中…");
+  try { await loadGoogleMaps(); }
+  catch { fatal("Google Mapsを読み込めませんでした。通信環境とAPIキーを確認してください。"); return; }
+  loading(false);
+
+  const id = new URLSearchParams(location.search).get("room");
+  if (id) await openFromLink(id);
+  else show("home");
+}
+
+async function openFromLink(id) {
+  loading(true, "部屋を確認中…");
+  try {
+    const snap = await getDoc(doc(db, COLLECTION, id));
+    loading(false);
+    if (!snap.exists()) { goHome(); toast("部屋が見つかりませんでした"); return; }
+    const d = snap.data();
+    if (d.players.host?.id === pid) return enterRoom(id, "host");
+    if (d.players.guest?.id === pid) return enterRoom(id, "guest");
+    if (d.players.guest) { goHome(); toast("この部屋はすでに2人そろっています"); return; }
+    pendingRoom = id;
+    $("#join-host-name").textContent = d.players.host?.name || "ホスト";
+    show("join");
+  } catch (e) {
+    console.error(e);
+    fatal("部屋の読み込みに失敗しました。Firestoreの設定（ルール）を確認してください。\n\n" + e.message);
+  }
+}
+
+function enterRoom(id, r) {
+  roomId = id; role = r;
+  roundKey = resultKey = finalKey = null;
+  history.replaceState(null, "", "?room=" + id);
+  if (unsub) unsub();
+  unsub = onSnapshot(roomRef(), (s) => {
+    if (!s.exists()) return;
+    room = s.data();
+    render();
+  }, (e) => { console.error(e); toast("通信エラーが発生しました"); });
+}
+
+function goHome() {
+  if (unsub) unsub();
+  unsub = null; roomId = role = room = null;
+  clearTimer();
+  history.replaceState(null, "", location.pathname);
+  show("home");
+}
+
+/* ---------- 画面描画 ---------- */
+function render() {
+  if (room.status === "lobby") return renderLobby();
+  if (room.status === "playing") {
+    const n = room.current;
+    const g = room.guesses?.["r" + n] || {};
+    const key = room.gameNo + "-" + n;
+    if (g.host && g.guest) {
+      if (resultKey !== key) { resultKey = key; showResult(n); }
+    } else {
+      if (roundKey !== key) { roundKey = key; startRound(n); }
+      updateRoundStatus(g);
+    }
+    return;
+  }
+  if (room.status === "finished") {
+    const key = "f" + room.gameNo;
+    if (finalKey !== key) { finalKey = key; showFinal(); }
+  }
+}
+
+function renderLobby() {
+  show("lobby");
+  const isHost = role === "host";
+  $("#invite-card").style.display = isHost && !room.players.guest ? "" : "none";
+  $("#invite-link").value = inviteUrl();
+  $("#lobby-host").textContent = nameOf("host") + (role === "host" ? "（あなた）" : "");
+  $("#dot-host").style.background = role === "host" ? COLORS.me : COLORS.opp;
+  const guest = room.players.guest;
+  $("#lobby-guest").innerHTML = "";
+  if (guest) {
+    $("#lobby-guest").textContent = guest.name + (role === "guest" ? "（あなた）" : "");
+    $("#dot-guest").style.background = role === "guest" ? COLORS.me : COLORS.opp;
+  } else {
+    const sp = document.createElement("span");
+    sp.className = "waiting-dots"; sp.style.color = "#6b6f7b"; sp.textContent = "参加待ち";
+    $("#lobby-guest").appendChild(sp);
+    $("#dot-guest").style.background = "#c9ccd3";
+  }
+  const st = room.settings;
+  $("#settings-sum").textContent =
+    `${st.rounds}ラウンド ／ 制限時間 ${st.time ? st.time + "秒" : "なし"} ／ ${st.move ? "移動OK" : "移動なし"}`;
+  $("#start-btn").style.display = isHost ? "" : "none";
+  $("#start-btn").disabled = !guest;
+  $("#lobby-note").textContent = isHost
+    ? (guest ? "準備OK！ゲームを開始しましょう。" : "相手がリンクを開くと、ここに名前が表示されます。")
+    : "ホストがゲームを開始するのを待っています…";
+}
+
+/* ---------- ラウンド ---------- */
+function ensurePano() {
+  if (pano) return;
+  pano = new google.maps.StreetViewPanorama($("#pano"), {
+    addressControl: false, showRoadLabels: false, fullscreenControl: false,
+    motionTracking: false, motionTrackingControl: false, enableCloseButton: false,
+    panControl: false, zoomControl: true, imageDateControl: false,
+    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
+  });
+}
+function ensureGuessMap() {
+  if (guessMap) return;
+  guessMap = new google.maps.Map($("#guess-map"), {
+    center: JAPAN_CENTER, zoom: 4, disableDefaultUI: true, zoomControl: true,
+    gestureHandling: "greedy", clickableIcons: false,
+  });
+  guessMap.addListener("click", (e) => {
+    if (submitted) return;
+    if (!guessMarker) guessMarker = new google.maps.Marker({ map: guessMap, icon: pin(COLORS.me, "") });
+    guessMarker.setPosition(e.latLng);
+    $("#submit-btn").disabled = false;
+    $("#map-hint").textContent = "ピンを立てました（タップで移動）";
+  });
+}
+
+function startRound(n) {
+  show("game");
+  ensurePano(); ensureGuessMap();
+  clearTimer();
+  roundIndex = n; submitted = false;
+  const loc = room.rounds[n];
+  const move = !!room.settings.move;
+  pano.setOptions({ linksControl: move, clickToGo: move, keyboardShortcuts: move });
+  startPov = { heading: Math.random() * 360, pitch: 0 };
+  pano.setPano(loc.pano);
+  pano.setPov(startPov);
+  pano.setZoom(0);
+  pano.setVisible(true);
+  $("#back-start").style.display = move ? "" : "none";
+
+  if (guessMarker) { guessMarker.setMap(null); guessMarker = null; }
+  guessMap.setCenter(JAPAN_CENTER);
+  guessMap.setZoom(window.innerWidth >= 900 ? 5 : 4);
+  $("#submit-btn").disabled = true;
+  $("#map-hint").textContent = "地図をタップしてピンを立てよう";
+  $("#map-panel").classList.remove("open");
+
+  $("#hud-round").textContent = `${n + 1} / ${room.rounds.length}`;
+  $("#hud-score").textContent = totalOf(role).toLocaleString();
+  $("#waiting-opp").textContent = nameOf(opp());
+
+  const t = room.settings.time;
+  $("#hud-timer").classList.remove("danger");
+  if (t > 0) {
+    deadline = Date.now() + t * 1000;
+    timer = setInterval(tick, 250);
+    tick();
+  } else {
+    $("#hud-timer").textContent = "∞";
+  }
+}
+function tick() {
+  const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+  $("#hud-timer").textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  $("#hud-timer").classList.toggle("danger", left <= 10);
+  if (left <= 0) { clearTimer(); submitGuess(); }
+}
+function clearTimer() { if (timer) clearInterval(timer); timer = null; }
+
+function updateRoundStatus(g) {
+  const mine = !!g[role];
+  $("#waiting").classList.toggle("show", mine);
+  if (mine) { submitted = true; clearTimer(); }
+  const o = $("#opp-status");
+  o.textContent = g[opp()] ? `${nameOf(opp())}：回答済み ✓` : `${nameOf(opp())}：考え中…`;
+  o.classList.toggle("done", !!g[opp()]);
+}
+
+async function submitGuess() {
+  if (submitted || roundIndex < 0) return;
+  submitted = true; clearTimer();
+  const n = roundIndex, loc = room.rounds[n];
+  let data = { lat: null, lng: null, km: null, score: 0 };
+  if (guessMarker) {
+    const p = guessMarker.getPosition();
+    const km = haversine(p.lat(), p.lng(), loc.lat, loc.lng);
+    data = { lat: p.lat(), lng: p.lng(), km, score: calcScore(km) };
+  }
+  $("#waiting").classList.add("show");
+  try {
+    await updateDoc(roomRef(), { [`guesses.r${n}.${role}`]: data });
+  } catch (e) {
+    console.error(e);
+    submitted = false;
+    $("#waiting").classList.remove("show");
+    toast("送信に失敗しました。もう一度お試しください");
+  }
+}
+
+/* ---------- ラウンド結果 ---------- */
+function showResult(n) {
+  clearTimer();
+  show("result");
+  if (!resultMap) {
+    resultMap = new google.maps.Map($("#result-map"), {
+      center: JAPAN_CENTER, zoom: 5, disableDefaultUI: true, zoomControl: true, gestureHandling: "greedy", clickableIcons: false,
+    });
+  }
+  resultOverlays.forEach((o) => o.setMap(null));
+  resultOverlays = [];
+
+  const loc = room.rounds[n];
+  const g = room.guesses["r" + n];
+  const truth = { lat: loc.lat, lng: loc.lng };
+  const bounds = new google.maps.LatLngBounds();
+  bounds.extend(truth);
+  resultOverlays.push(new google.maps.Marker({ map: resultMap, position: truth, icon: flagIcon(), zIndex: 10, title: "正解" }));
+
+  for (const r of [role, opp()]) {
+    const x = g[r];
+    if (x?.lat == null) continue;
+    const color = r === role ? COLORS.me : COLORS.opp;
+    const pos = { lat: x.lat, lng: x.lng };
+    bounds.extend(pos);
+    resultOverlays.push(new google.maps.Marker({ map: resultMap, position: pos, icon: pin(color, r === role ? "自" : "相") }));
+    resultOverlays.push(new google.maps.Polyline({
+      map: resultMap, path: [pos, truth], strokeOpacity: 0, geodesic: true,
+      icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 1, strokeColor: color, scale: 3 }, offset: "0", repeat: "12px" }],
+    }));
+  }
+  if (bounds.getNorthEast().equals(bounds.getSouthWest())) { resultMap.setCenter(truth); resultMap.setZoom(9); }
+  else resultMap.fitBounds(bounds, 50);
+
+  $("#result-title").textContent = `ラウンド ${n + 1} / ${room.rounds.length} の結果`;
+  const cards = $("#result-cards");
+  cards.innerHTML = "";
+  const myS = g[role]?.score || 0, opS = g[opp()]?.score || 0;
+  for (const r of [role, opp()]) {
+    const x = g[r] || {};
+    const el = document.createElement("div");
+    el.className = "pcard" + (((r === role ? myS : opS) > (r === role ? opS : myS)) ? " win" : "");
+    el.style.borderTopColor = r === role ? COLORS.me : COLORS.opp;
+    const nm = document.createElement("div"); nm.className = "nm"; nm.textContent = nameOf(r) + (r === role ? "（あなた）" : "");
+    const dist = document.createElement("div"); dist.className = "dist"; dist.textContent = "誤差 " + fmtKm(x.km);
+    const pts = document.createElement("div"); pts.className = "pts"; pts.textContent = (x.score || 0).toLocaleString();
+    const tot = document.createElement("div"); tot.className = "tot"; tot.textContent = "合計 " + totalOf(r).toLocaleString() + " 点";
+    el.append(nm, dist, pts, tot);
+    cards.appendChild(el);
+  }
+  $("#sv-link").href = `https://www.google.com/maps/@?api=1&map_action=pano&pano=${encodeURIComponent(loc.pano)}`;
+  const last = n + 1 >= room.rounds.length;
+  $("#next-btn").textContent = last ? "最終結果を見る" : "次のラウンドへ";
+  $("#next-btn").disabled = false;
+}
+
+async function nextRound() {
+  const n = room.current;
+  $("#next-btn").disabled = true;
+  try {
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(roomRef());
+      const d = s.data();
+      if (d.status !== "playing" || d.current !== n) return; // 相手が先に進めた
+      if (n + 1 >= d.rounds.length) tx.update(roomRef(), { status: "finished" });
+      else tx.update(roomRef(), { current: n + 1 });
+    });
+  } catch (e) {
+    console.error(e);
+    $("#next-btn").disabled = false;
+    toast("通信に失敗しました");
+  }
+}
+
+/* ---------- 最終結果 ---------- */
+function showFinal() {
+  clearTimer();
+  show("final");
+  const me = totalOf(role), op = totalOf(opp());
+  $("#final-winner").textContent = me > op ? "🎉 あなたの勝ち！" : me < op ? `${nameOf(opp())} さんの勝ち` : "引き分け！";
+  $("#final-score").textContent = `${me.toLocaleString()} 点 − ${op.toLocaleString()} 点`;
+  const tb = $("#final-table");
+  tb.innerHTML = "";
+  const head = tb.insertRow();
+  ["R", nameOf(role) + "（あなた）", nameOf(opp())].forEach((t) => { const th = document.createElement("th"); th.textContent = t; head.appendChild(th); });
+  room.rounds.forEach((_, i) => {
+    const g = room.guesses["r" + i] || {};
+    const a = g[role]?.score || 0, b = g[opp()]?.score || 0;
+    const tr = tb.insertRow();
+    const c0 = tr.insertCell(); c0.textContent = i + 1;
+    const c1 = tr.insertCell(); c1.textContent = a.toLocaleString(); if (a > b) c1.className = "best";
+    const c2 = tr.insertCell(); c2.textContent = b.toLocaleString(); if (b > a) c2.className = "best";
+  });
+  const tr = tb.insertRow(); tr.className = "total";
+  tr.insertCell().textContent = "計";
+  tr.insertCell().textContent = me.toLocaleString();
+  tr.insertCell().textContent = op.toLocaleString();
+}
+
+async function rematch() {
+  const gameNo = room.gameNo;
+  loading(true, "新しい出題地点を探しています…");
+  try {
+    const rounds = await generateRounds(room.settings.rounds);
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(roomRef());
+      const d = s.data();
+      if (d.status !== "finished" || d.gameNo !== gameNo) return; // 相手が先に再戦を開始済み
+      tx.update(roomRef(), { status: "playing", rounds, current: 0, guesses: {}, gameNo: gameNo + 1 });
+    });
+  } catch (e) {
+    console.error(e);
+    toast("再戦の準備に失敗しました");
+  } finally {
+    loading(false);
+  }
+}
+
+/* ---------- ボタン ---------- */
+$("#create-btn").onclick = async () => {
+  const name = readName("#host-name");
+  if (!name) return;
+  const settings = {
+    rounds: Number($("#set-rounds").value),
+    time: Number($("#set-time").value),
+    move: $("#set-move").value === "1",
+  };
+  loading(true, "日本のどこかを探しています…");
+  try {
+    const rounds = await generateRounds(settings.rounds);
+    const id = randId(8);
+    await setDoc(doc(db, COLLECTION, id), {
+      createdAt: serverTimestamp(), status: "lobby", gameNo: 1, settings, rounds,
+      current: 0, guesses: {}, players: { host: { id: pid, name }, guest: null },
+    });
+    loading(false);
+    enterRoom(id, "host");
+  } catch (e) {
+    console.error(e);
+    loading(false);
+    toast("部屋を作れませんでした：" + e.message);
+  }
+};
+
+$("#join-btn").onclick = async () => {
+  const name = readName("#join-name");
+  if (!name || !pendingRoom) return;
+  loading(true, "参加しています…");
+  try {
+    const ref = doc(db, COLLECTION, pendingRoom);
+    await runTransaction(db, async (tx) => {
+      const s = await tx.get(ref);
+      if (!s.exists()) throw new Error("部屋が見つかりません");
+      const g = s.data().players.guest;
+      if (g && g.id !== pid) throw new Error("すでに2人そろっています");
+      tx.update(ref, { "players.guest": { id: pid, name } });
+    });
+    loading(false);
+    enterRoom(pendingRoom, "guest");
+  } catch (e) {
+    loading(false);
+    toast(e.message);
+  }
+};
+
+$("#start-btn").onclick = async () => {
+  $("#start-btn").disabled = true;
+  try { await updateDoc(roomRef(), { status: "playing", current: 0 }); }
+  catch (e) { console.error(e); $("#start-btn").disabled = false; toast("開始できませんでした"); }
+};
+
+$("#copy-btn").onclick = async () => {
+  try { await navigator.clipboard.writeText(inviteUrl()); toast("リンクをコピーしました"); }
+  catch { $("#invite-link").select(); document.execCommand("copy"); toast("リンクをコピーしました"); }
+};
+const inviteText = () => `ニッポンゲッサーで対戦しよう！日本のどこか当てられる？\n${inviteUrl()}`;
+$("#line-btn").onclick = () => window.open("https://line.me/R/share?text=" + encodeURIComponent(inviteText()), "_blank");
+$("#share-btn").onclick = async () => {
+  if (navigator.share) {
+    try { await navigator.share({ title: "ニッポンゲッサー", text: "日本どこだ対戦しよう！", url: inviteUrl() }); } catch {}
+  } else $("#copy-btn").click();
+};
+
+$("#open-map").onclick = () => $("#map-panel").classList.add("open");
+$("#close-map").onclick = () => $("#map-panel").classList.remove("open");
+$("#back-start").onclick = () => {
+  if (!room || roundIndex < 0) return;
+  pano.setPano(room.rounds[roundIndex].pano);
+  pano.setPov(startPov); pano.setZoom(0);
+};
+$("#submit-btn").onclick = () => submitGuess();
+$("#next-btn").onclick = () => nextRound();
+$("#rematch-btn").onclick = () => rematch();
+$("#final-home-btn").onclick = () => goHome();
+$("#lobby-home-btn").onclick = () => goHome();
+["#host-name", "#join-name"].forEach((s) =>
+  $(s).addEventListener("keydown", (e) => { if (e.key === "Enter") (s === "#host-name" ? $("#create-btn") : $("#join-btn")).click(); })
+);
+
+main();
+</script>
+</body>
+</html>
